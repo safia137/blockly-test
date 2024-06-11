@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blockly Blocks</title>
+  <script src="https://unpkg.com/blockly/blockly.min.js"></script>
+  <link href="https://unpkg.com/blockly@10.4.3/blockly.css" rel="stylesheet" />
+  <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+  <style>
+    #blocklyDiv {
+      height: 900px;
+      width: 1000px;
+    }
+    .blocklyMainBackground {
+      width: 900px !important;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    table, th, td {
+      border: 1px solid black;
+    }
+    th, td {
+      padding: 8px;
+      text-align: left;
+    }
+  </style>
+</head>
+<body>
+  <div id="blocklyDiv"></div>
+  <button onclick="displayWorkspaceJSON()">Toon JSON</button>
+  <br>
+  <div id="jsonTableContainer"></div>
+  <button onclick="downloadWorkspaceJSON()">Download JSON</button>
+  <input type="file" id="fileInput" onchange="loadWorkspaceFromFile(event)">
+  <script>
+    let jsonData = [], workspace;
+
+    async function fetchJsonFile() {
+      try {
+        const response = await fetch('DefaultRapport.json');
+        if (!response.ok) throw new Error('Network response was not ok');
+        jsonData = await response.json();
+        console.log("JSON Data Loaded:", jsonData);
+        initializeBlocks();
+        injectWorkspace();
+      } catch (error) {
+        console.error('Fetch error:', error);
+      }
+    }
+
+    function initializeBlocks() {
+      const uniquePhaseOrders = [...new Set(jsonData.map(item => item.phaseOrder.toString()))];
+      const uniqueStepOrders = [...new Set(jsonData.map(item => item.stepOrder.toString()))];
+
+      const commonFields = {
+        "Taal": [["ENG", "ENG"], ["NL", "NL"]],
+        "Phase Names": language => (language === 'ENG' ? [...new Set(jsonData.map(item => item.phaseNameEN))] : [...new Set(jsonData.map(item => item.phaseNameNL))]).map(name => [name, name]),
+        "Step Names": language => (language === 'ENG' ? [...new Set(jsonData.map(item => item.stepNameEN))] : [...new Set(jsonData.map(item => item.stepNameNL))]).map(name => [name, name]),
+        "Workflow Names": language => (language === 'ENG' ? [...new Set(jsonData.map(item => item.workflowNameEN))] : [...new Set(jsonData.map(item => item.workflowNameNL))]).map(name => [name, name]),
+        "Product Types": language => (language === 'ENG' ? [...new Set(jsonData.map(item => item.productTypeEN))] : [...new Set(jsonData.map(item => item.productTypeNL))]).map(type => [type, type]),
+        "Product Forms": language => (language === 'ENG' ? [...new Set(jsonData.map(item => item.productFormEN))] : [...new Set(jsonData.map(item => item.productFormNL))]).map(form => [form, form])
+      };
+
+      const updateDetails = (block, key, language) => {
+        const item = jsonData.find(item => (language === 'ENG' ? item[`${key}EN`] : item[`${key}NL`]) === block.getFieldValue('ACTION'));
+        if (item) {
+          block.data = {
+            description: language === 'ENG' ? item.stepDescriptionEN : item.stepDescriptionNL,
+            instruction: language === 'ENG' ? item.workflowInstruction : item.workflowInstruction
+          };
+          block.setFieldValue(item.phaseOrder ? item.phaseOrder.toString() : item.stepOrder.toString(), 'NUMBER');
+        }
+      };
+
+      Blockly.Blocks['fase'] = {
+        init() {
+          this.appendDummyInput()
+            .appendField("Fase")
+            .appendField(new Blockly.FieldDropdown(uniquePhaseOrders.map(order => [order, order])), "NUMBER")
+            .appendField("Taal")
+            .appendField(new Blockly.FieldDropdown(commonFields["Taal"], function(language) {
+              updateDetails(this.sourceBlock_, 'phaseName', language);
+            }), "LANGUAGE");
+          this.appendDummyInput()
+            .appendField(new Blockly.FieldDropdown(commonFields["Phase Names"].call(this, 'NL'), function(action) {
+              updateDetails(this.sourceBlock_, 'phaseName', this.sourceBlock_.getFieldValue('LANGUAGE'));
+            }), "ACTION");
+          this.appendStatementInput("LOOP_BODY").setCheck("stap").appendField("do");
+          this.setPreviousStatement(true, ["fase", "proces", "werkstroom"]);
+          this.setNextStatement(true, ["fase", "proces", "werkstroom"]);
+          this.setColour("#4B0082");
+          this.setTooltip("Represents a phase with a specific number and action.");
+          this.setHelpUrl("");
+        }
+      };
+
+      Blockly.Blocks['stap'] = {
+        init() {
+          this.appendDummyInput()
+            .appendField("Stap")
+            .appendField(new Blockly.FieldDropdown(uniqueStepOrders.map(order => [order, order])), "NUMBER")
+            .appendField("Taal")
+            .appendField(new Blockly.FieldDropdown(commonFields["Taal"], function(language) {
+              updateDetails(this.sourceBlock_, 'stepName', language);
+            }), "LANGUAGE");
+          this.appendDummyInput()
+            .appendField(new Blockly.FieldDropdown(commonFields["Step Names"].call(this, 'NL'), function(action) {
+              updateDetails(this.sourceBlock_, 'stepName', this.sourceBlock_.getFieldValue('LANGUAGE'));
+            }), "ACTION");
+          this.setPreviousStatement(true, null);
+          this.setNextStatement(true, null);
+          this.setColour("#006400");
+          this.setTooltip("Represents a step with a specific number.");
+          this.setHelpUrl("");
+        }
+      };
+
+      Blockly.Blocks['proces'] = {
+        init() {
+          this.appendDummyInput()
+            .appendField("Proces")
+            .appendField("Taal")
+            .appendField(new Blockly.FieldDropdown(commonFields["Taal"], function(language) {
+              updateDetails(this.sourceBlock_, 'productType', language);
+              updateDetails(this.sourceBlock_, 'productForm', language);
+            }), "LANGUAGE");
+          this.appendDummyInput()
+            .appendField("Product Type")
+            .appendField(new Blockly.FieldDropdown(commonFields["Product Types"].call(this, 'NL')), "PRODUCT_TYPE");
+          this.appendDummyInput()
+            .appendField("Product Form")
+            .appendField(new Blockly.FieldDropdown(commonFields["Product Forms"].call(this, 'NL')), "PRODUCT_FORM");
+          this.appendStatementInput("LOOP_BODY").setCheck(["fase", "stap"]);
+          this.setPreviousStatement(true, null);
+          this.setNextStatement(true, null);
+          this.setColour(230);
+          this.setTooltip("Represents a looping process with selectable options.");
+          this.setHelpUrl("");
+        }
+      };
+
+      Blockly.Blocks['werkstroom'] = {
+        init() {
+          this.appendDummyInput()
+            .appendField("Werkstroom")
+            .appendField(new Blockly.FieldDropdown(commonFields["Workflow Names"].call(this, 'NL')), "ACTION");
+          this.appendDummyInput()
+            .appendField("Taal")
+            .appendField(new Blockly.FieldDropdown(commonFields["Taal"], function(language) {
+              updateDetails(this.sourceBlock_, 'workflowName', language);
+            }), "LANGUAGE");
+          this.setPreviousStatement(true, null);
+          this.setNextStatement(true, null);
+          this.setColour("#0000FF");
+          this.setTooltip("Represents a workflow.");
+          this.setHelpUrl("");
+        }
+      };
+
+      Blockly.Blocks['zichtbaar'] = {
+        init() {
+          this.appendDummyInput()
+            .appendField("Zichtbaar")
+            .appendField("Stap")
+            .appendField(new Blockly.FieldCheckbox("TRUE", function(checked) {
+              const stepBlocks = this.sourceBlock_.getChildren(false).filter(block => block.type === 'stap');
+              stepBlocks.forEach(block => {
+                const correspondingJson = jsonData.find(item => item.stepOrder.toString() === block.getFieldValue('NUMBER'));
+                if (correspondingJson) correspondingJson.StepIsVisible = checked;
+              });
+            }), "STEP_VISIBLE")
+            .appendField("Fase")
+            .appendField(new Blockly.FieldCheckbox("TRUE", function(checked) {
+              const phaseBlocks = this.sourceBlock_.getChildren(false).filter(block => block.type === 'fase');
+              phaseBlocks.forEach(block => {
+                const correspondingJson = jsonData.find(item => item.phaseOrder.toString() === block.getFieldValue('NUMBER'));
+                if (correspondingJson) correspondingJson.PhaseIsVisible = checked;
+              });
+            }), "FASE_VISIBLE");
+          this.appendStatementInput("LOOP_BODY").setCheck(null);
+          this.setPreviousStatement(true, null);
+          this.setNextStatement(true, null);
+          this.setColour("#FFA500");
+          this.setTooltip("Indicates visibility.");
+          this.setHelpUrl("");
+        }
+      };
+
+      Blockly.Blocks['verplicht'] = {
+        init() {
+          this.appendDummyInput().appendField("Verplicht")
+            .appendField(new Blockly.FieldCheckbox("TRUE"), "VISIBLE");
+          this.appendStatementInput("LOOP_BODY").setCheck(null);
+          this.setPreviousStatement(true, null);
+          this.setNextStatement(true, null);
+          this.setColour("#FFD700");
+          this.setTooltip("Represents a requirement.");
+          this.setHelpUrl("");
+        }
+      };
+    }
+
+    function injectWorkspace() {
+      workspace = Blockly.inject('blocklyDiv', {
+        toolbox: `
+          <xml>
+            <block type="werkstroom"></block>
+            <block type="fase"></block>
+            <block type="stap"></block>
+            <block type="proces"></block>
+            <block type="zichtbaar"></block>
+            <block type="verplicht"></block>
+          </xml>
+        `
+      });
+      workspace.addChangeListener(function(event) {
+        if ([Blockly.Events.BLOCK_MOVE, Blockly.Events.BLOCK_CREATE, Blockly.Events.BLOCK_CHANGE].includes(event.type)) {
+          checkAndLimitBlocks(workspace);
+          if (event.blockId) {
+            const block = workspace.getBlockById(event.blockId);
+            if (block && ['fase', 'stap', 'werkstroom', 'zichtbaar'].includes(block.type)) {
+              updateDropdownOptions(workspace);
+            }
+          }
+        }
+      });
+    }
+
+    function displayWorkspaceJSON() {
+      var workspaceJSON = '[';
+      var stepVisible = true, faseVisible = true;
+      workspace.getAllBlocks().forEach(block => {
+        if (block.type === 'zichtbaar') {
+          stepVisible = block.getFieldValue('STEP_VISIBLE') === 'TRUE';
+          faseVisible = block.getFieldValue('FASE_VISIBLE') === 'TRUE';
+        }
+      });
+      workspace.getAllBlocks().forEach(block => {
+        if ((block.type === 'fase' && faseVisible) || (block.type === 'stap' && stepVisible) || !['fase', 'stap'].includes(block.type)) {
+          var blockCode = Blockly.JavaScript.generate_block_json(block)[0];
+          if (blockCode) workspaceJSON += blockCode + ',';
+        }
+      });
+      workspaceJSON = workspaceJSON.slice(0, -1) + ']';
+      try {
+        const json = JSON.parse(workspaceJSON);
+        document.getElementById('jsonTableContainer').innerHTML = generateTableFromJSON(json);
+      } catch (e) {
+        document.getElementById('jsonTableContainer').innerHTML = 'Error in JSON format: ' + e.message;
+      }
+    }
+
+    function generateTableFromJSON(json) {
+      let table = '<table><tr>';
+      for (let key in json[0]) {
+        table += `<th>${key}</th>`;
+      }
+      table += '</tr>';
+      json.forEach(item => {
+        table += '<tr>';
+        for (let key in item) {
+          table += `<td>${item[key]}</td>`;
+        }
+        table += '</tr>';
+      });
+      table += '</table>';
+      return table;
+    }
+
+    Blockly.JavaScript['generate_block_json'] = function(block) {
+      var code;
+      const getFieldData = (type, fields) => fields.reduce((acc, field) => ({ ...acc, [field]: block.getFieldValue(field) }), { type });
+      
+      switch (block.type) {
+        case 'werkstroom':
+          code = JSON.stringify({ ...getFieldData('werkstroom', ['ACTION', 'LANGUAGE']), ...block.data });
+          break;
+        case 'proces':
+          code = JSON.stringify({ ...getFieldData('proces', ['PRODUCT_TYPE', 'PRODUCT_FORM', 'LANGUAGE']), ...block.data });
+          break;
+        case 'fase':
+        case 'stap':
+          code = JSON.stringify({ ...getFieldData(block.type, ['NUMBER', 'ACTION', 'LANGUAGE']), ...block.data, dependencies: getDependencies(block) });
+          break;
+        case 'zichtbaar':
+          code = JSON.stringify(getFieldData('zichtbaar', ['STEP_VISIBLE', 'FASE_VISIBLE']));
+          break;
+        case 'verplicht':
+          code = JSON.stringify(getFieldData('verplicht', ['VISIBLE']));
+          break;
+      }
+      return [code || '', Blockly.JavaScript.ORDER_ATOMIC];
+    };
+
+    function getDependencies(block) {
+      const dependencies = [];
+      let child = block.getNextBlock();
+      while (child) {
+        if (child.type === 'stap' || child.type === 'fase') {
+          dependencies.push({
+            type: child.type,
+            number: child.getFieldValue('NUMBER'),
+            action: child.getFieldValue('ACTION')
+          });
+        }
+        child = child.getNextBlock();
+      }
+      return dependencies;
+    }
+
+    function downloadWorkspaceJSON() {
+      var workspaceJSON = Blockly.serialization.workspaces.save(workspace);
+      var formattedJSON = JSON.stringify(workspaceJSON, null, 2);
+      var element = document.createElement('a');
+      element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(formattedJSON));
+      element.setAttribute('download', 'workspace.json');
+      element.style.display = 'none';
+      document.body.appendChild(element);
+      element.click();
+      document.body.removeChild(element);
+    }
+
+    function loadWorkspaceFromFile(event) {
+      var file = event.target.files[0];
+      if (file) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          var contents = e.target.result;
+          try {
+            var json = JSON.parse(contents);
+            Blockly.serialization.workspaces.load(json, workspace);
+          } catch (e) {
+            alert('File parse error: ' + e.message);
+          }
+        };
+        reader.readAsText(file);
+      }
+    }
+
+    function checkAndLimitBlocks(workspace) {
+      const limitBlocks = (type, limit) => {
+        const blocks = workspace.getBlocksByType(type, false);
+        blocks.forEach(block => {
+          const childBlocks = [];
+          let child = block.getInputTargetBlock('LOOP_BODY');
+          while (child) {
+            if (child.type === type) childBlocks.push(child);
+            child = child.nextConnection && child.nextConnection.targetBlock();
+          }
+          while (childBlocks.length > limit) {
+            childBlocks.pop().unplug();
+          }
+          if (childBlocks.length > limit) alert(`Only ${limit} "${type}" blocks allowed.`);
+        });
+      };
+      limitBlocks('fase', 5);
+      limitBlocks('stap', 5);
+    }
+
+    function updateDropdownOptions(workspace) {
+      const allBlocks = ['fase', 'stap', 'werkstroom'].reduce((acc, type) => ({ ...acc, [type]: workspace.getAllBlocks().filter(block => block.type === type) }), {});
+      const selectedValues = ['fase', 'stap', 'werkstroom'].reduce((acc, type) => ({ ...acc, [type]: new Set(allBlocks[type].map(block => block.getFieldValue('ACTION'))) }), {});
+      const updateOptions = (type, key) => {
+        allBlocks[type].forEach(block => {
+          let dropdown = block.getField('ACTION');
+          let currentValue = block.getFieldValue('ACTION');
+          let language = block.getFieldValue('LANGUAGE');
+          let validOptions = commonFields[`${key} Names`](language).filter(option => !selectedValues[type].has(option[1]) || option[1] === currentValue);
+          if (validOptions.length < 1) {
+            alert(`All unique actions used. Cannot add new "${type}" blocks with the same action.`);
+            block.setFieldValue('', 'ACTION');
+          } else {
+            dropdown.menuGenerator_ = validOptions;
+            dropdown.setValue("");
+          }
+        });
+      };
+      updateOptions('fase', 'Phase');
+      updateOptions('stap', 'Step');
+      updateOptions('werkstroom', 'Workflow');
+    }
+
+    fetchJsonFile();
+  </script>
+</body>
+</html>
+
+
+<div class="PCContentWidget">
+  <div data-dojo-type="dijit/layout/ContentPane" data-dojo-attach-point="pcContentPaneMain">
+      <!-- Blockly workspace container -->
+      <div data-dojo-attach-point="pcInstanceData" id="blocklyDiv" style="height: 480px; width: 640px; position: relative;">
+          <!-- This div will be used to inject the Blockly workspace -->
+      </div>
+  </div>
+</div>
