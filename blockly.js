@@ -68,3 +68,24 @@ Blockly.Blocks['proces'] = {
       this.setHelpUrl("");
     }
   };
+  Blockly.Blocks['fase'] = {
+    init() {
+      this.appendDummyInput()
+        .appendField("Fase")
+        .appendField(new Blockly.FieldDropdown(uniquePhaseOrders.map(order => [order, order])), "NUMBER")
+        .appendField("Taal")
+        .appendField(new Blockly.FieldDropdown(commonFields["Taal"], function(language) {
+          updateDetails(this.sourceBlock_, 'phaseName', language);
+        }), "LANGUAGE");
+      this.appendDummyInput()
+        .appendField(new Blockly.FieldDropdown(commonFields["Phase Names"].call(this, 'NL'), function(action) {
+          updateDetails(this.sourceBlock_, 'phaseName', this.sourceBlock_.getFieldValue('LANGUAGE'));
+        }), "ACTION");
+      this.appendStatementInput("LOOP_BODY").setCheck("stap").appendField("do");
+      this.setPreviousStatement(true, ["fase", "proces", "werkstroom"]);
+      this.setNextStatement(true, ["fase", "proces", "werkstroom"]);
+      this.setColour("#4B0082");
+      this.setTooltip("Represents a phase with a specific number and action.");
+      this.setHelpUrl("");
+    }
+  };
