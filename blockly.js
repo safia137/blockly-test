@@ -89,3 +89,23 @@ Blockly.Blocks['proces'] = {
       this.setHelpUrl("");
     }
   };
+  Blockly.Blocks['stap'] = {
+    init() {
+      this.appendDummyInput()
+        .appendField("Stap")
+        .appendField(new Blockly.FieldDropdown(uniqueStepOrders.map(order => [order, order])), "NUMBER")
+        .appendField("Taal")
+        .appendField(new Blockly.FieldDropdown(commonFields["Taal"], function(language) {
+          updateDetails(this.sourceBlock_, 'stepName', language);
+        }), "LANGUAGE");
+      this.appendDummyInput()
+        .appendField(new Blockly.FieldDropdown(commonFields["Step Names"].call(this, 'NL'), function(action) {
+          updateDetails(this.sourceBlock_, 'stepName', this.sourceBlock_.getFieldValue('LANGUAGE'));
+        }), "ACTION");
+      this.setPreviousStatement(true, null);
+      this.setNextStatement(true, null);
+      this.setColour("#006400");
+      this.setTooltip("Represents a step with a specific number.");
+      this.setHelpUrl("");
+    }
+  };
