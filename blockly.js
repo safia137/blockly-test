@@ -109,31 +109,4 @@ Blockly.Blocks['proces'] = {
       this.setHelpUrl("");
     }
   };
-  Blockly.Blocks['zichtbaar'] = {
-    init() {
-      this.appendDummyInput()
-        .appendField("Zichtbaar")
-        .appendField("Stap")
-        .appendField(new Blockly.FieldCheckbox("TRUE", function(checked) {
-          const stepBlocks = this.sourceBlock_.getChildren(false).filter(block => block.type === 'stap');
-          stepBlocks.forEach(block => {
-            const correspondingJson = jsonData.find(item => item.stepOrder.toString() === block.getFieldValue('NUMBER'));
-            if (correspondingJson) correspondingJson.StepIsVisible = checked;
-          });
-        }), "STEP_VISIBLE")
-        .appendField("Fase")
-        .appendField(new Blockly.FieldCheckbox("TRUE", function(checked) {
-          const phaseBlocks = this.sourceBlock_.getChildren(false).filter(block => block.type === 'fase');
-          phaseBlocks.forEach(block => {
-            const correspondingJson = jsonData.find(item => item.phaseOrder.toString() === block.getFieldValue('NUMBER'));
-            if (correspondingJson) correspondingJson.PhaseIsVisible = checked;
-          });
-        }), "FASE_VISIBLE");
-      this.appendStatementInput("LOOP_BODY").setCheck(null);
-      this.setPreviousStatement(true, null);
-      this.setNextStatement(true, null);
-      this.setColour("#FFA500");
-      this.setTooltip("Indicates visibility.");
-      this.setHelpUrl("");
-    }
-  };
+  
