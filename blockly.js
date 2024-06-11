@@ -109,7 +109,3 @@ Blockly.Blocks['proces'] = {
       this.setHelpUrl("");
     }
   };
-
-  function initializeBlocks() {
-    const uniquePhaseOrders = [...new Set(jsonData.map(item => item.phaseOrder.toString()))];
-    const uniqueStepOrders = [...new Set(jsonData.map(item => item.stepOrder.toString()))];
