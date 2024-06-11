@@ -109,22 +109,3 @@ Blockly.Blocks['proces'] = {
       this.setHelpUrl("");
     }
   };
-  <style>
-    #blocklyDiv {
-      height: 900px;
-      width: 1000px;
-    }
-    .blocklyMainBackground {
-      width: 900px !important;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-    table, th, td {
-      border: 1px solid black;
-    }
-    th, td {
-      padding: 8px;
-      text-align: left;
-    }
