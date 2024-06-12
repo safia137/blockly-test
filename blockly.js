@@ -109,4 +109,22 @@ Blockly.Blocks['proces'] = {
       this.setHelpUrl("");
     }
   };
-  
+  function checkAndLimitBlocks(workspace) {
+    const limitBlocks = (type, limit) => {
+      const blocks = workspace.getBlocksByType(type, false);
+      blocks.forEach(block => {
+        const childBlocks = [];
+        let child = block.getInputTargetBlock('LOOP_BODY');
+        while (child) {
+          if (child.type === type) childBlocks.push(child);
+          child = child.nextConnection && child.nextConnection.targetBlock();
+        }
+        while (childBlocks.length > limit) {
+          childBlocks.pop().unplug();
+        }
+        if (childBlocks.length > limit) alert(`Only ${limit} "${type}" blocks allowed.`);
+      });
+    };
+    limitBlocks('fase', 5);
+    limitBlocks('stap', 5);
+  }
